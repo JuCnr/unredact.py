@@ -11,9 +11,14 @@ It works by creating a new document and re-inserting only the essential elements
 ## Installation  
 
 1. **Install Python 3.x**  
-Install Python  
-2. **Install Dependencies:**  
+Install Python
+2. **Install Git and Clone Obj**
+  ```bash
+  git clone https://github.com/OpLumina/unredact.py/
+  ```bash
+3. **Install Dependencies:**  
    ```bash
+   cd unredact.py
    python -m venv venv  
    .\venv\Scripts\Activate  
    pip install -r .\docs\requirements.txt  
@@ -54,5 +59,6 @@ Directory Structure:
 pymupdf==1.23.26
 ``
 </pre>
+
 
 
