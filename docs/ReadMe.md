@@ -38,7 +38,7 @@ To process a folder and turn off the red highlighting:
 cd <project folder>  
 .\venv\Scripts\Activate  
 python unredact.py -i ./input_pdfs -o ./cleaned_pdfs --hl 0  
-``
+```
 
 Directory Structure:  
 ├── src  
@@ -54,3 +54,4 @@ Directory Structure:
 pymupdf==1.23.26
 ``
 </pre>
+
