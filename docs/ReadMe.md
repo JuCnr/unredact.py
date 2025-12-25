@@ -15,7 +15,7 @@ Install Python
 2. **Install Git and Clone Obj**
   ```bash
   git clone https://github.com/OpLumina/unredact.py/
-  ```bash
+  ```
 3. **Install Dependencies:**  
    ```bash
    cd unredact.py
@@ -59,6 +59,7 @@ Directory Structure:
 pymupdf==1.23.26
 ``
 </pre>
+
 
 
 
