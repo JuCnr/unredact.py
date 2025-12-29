@@ -4,6 +4,38 @@ import glob
 import argparse
 import sys
 
+def clean_vector_redactions(page):
+    """
+    Identifies and returns a list of shapes that are NOT black redaction boxes.
+    This handles vector-based rectangles that get_images() misses.
+    """
+    cleaned_drawings = []
+    drawings = page.get_drawings()
+    
+    for path in drawings:
+        is_redaction = False
+        fill_color = path.get("fill")
+        stroke_color = path.get("color")
+        
+        # Logic: If it's a filled shape and the color is black
+        if fill_color:
+            if all(c < 0.05 for c in fill_color):
+                bbox = path["rect"]
+                if bbox.width > 5 and bbox.height > 5:
+                    is_redaction = True
+        
+        # Handle very thick black strokes used as redaction
+        if not is_redaction and stroke_color:
+            if all(c < 0.05 for c in stroke_color) and path.get("width", 0) > 10:
+                is_redaction = True
+
+        if not is_redaction:
+            cleaned_drawings.append(path)
+        else:
+            print(f"  [REMOVED] Vector redaction path at {path['rect']}")
+            
+    return cleaned_drawings
+
 def process_file(file_path, output_folder, remove_bbox, highlight_text, custom_name=None):
     """Core logic to process a single PDF file."""
     base_fname = os.path.basename(file_path)
@@ -63,7 +95,22 @@ def process_file(file_path, output_folder, remove_bbox, highlight_text, custom_n
                 except Exception as e:
                     print(f"  [DEBUG] Skipping image xref {xref}: {e}")
 
-        # --- STEP 2: RECOVER DIGITAL TEXT ---
+            # --- STEP 2: CLEAN & RESTORE VECTOR GRAPHICS ---
+            # This uses the new function to filter out black vector boxes
+            if remove_bbox == 1:
+                safe_drawings = clean_vector_redactions(page)
+                shape = new_page.new_shape()
+                for path in safe_drawings:
+                    shape.draw_path(path)
+                shape.commit()
+            else:
+                # If removal is disabled, just copy all drawings over
+                shape = new_page.new_shape()
+                for path in page.get_drawings():
+                    shape.draw_path(path)
+                shape.commit()
+
+            # --- STEP 3: RECOVER DIGITAL TEXT ---
             text_dict = page.get_text("dict")
             for block in text_dict["blocks"]:
                 for line in block.get("lines", []):
@@ -107,45 +154,6 @@ def run_operation(input_path, output_folder, remove_bbox, highlight_text, custom
     else:
         print(f"❌ Error: Input path '{input_path}' does not exist.")
 
-def clean_vector_redactions(page):
-    """
-    Identifies and returns a list of shapes that are NOT black redaction boxes.
-    This handles vector-based rectangles that get_images() misses.
-    """
-    cleaned_drawings = []
-    
-    # Extract all drawing paths (rectangles, lines, etc.)
-    drawings = page.get_drawings()
-    
-    for path in drawings:
-        is_redaction = False
-        
-        # Check fill color (normalized to 0-1 range in PyMuPDF)
-        fill_color = path.get("fill")
-        stroke_color = path.get("color")
-        
-        # Logic: If it's a filled shape and the color is near black
-        if fill_color:
-            # Check if RGB/CMYK values are all near zero (black)
-            if all(c < 0.05 for c in fill_color):
-                # It's likely a redaction box if it's a closed rectangle
-                # We can also check the area to avoid deleting small icons
-                bbox = path["rect"]
-                if bbox.width > 5 and bbox.height > 5:
-                    is_redaction = True
-        
-        if not is_redaction and stroke_color:
-            if all(c < 0.05 for c in stroke_color) and path.get("width", 0) > 10:
-                is_redaction = True
-
-        if not is_redaction:
-            cleaned_drawings.append(path)
-        else:
-            print(f"  [REMOVED] Vector redaction path at {path['rect']}")
-            
-    return cleaned_drawings
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-i", "--input", type=str, help="Input folder or file")
@@ -167,6 +175,5 @@ if __name__ == "__main__":
 
     in_path = args.input if args.input else input("Input (File or Folder): ").strip().replace('"', '')
     out_dir = args.output if args.output else input("Output Folder: ").strip().replace('"', '')
-
 
     run_operation(in_path, out_dir, args.bbox, args.highlight, args.name)
