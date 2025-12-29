@@ -107,6 +107,45 @@ def run_operation(input_path, output_folder, remove_bbox, highlight_text, custom
     else:
         print(f"❌ Error: Input path '{input_path}' does not exist.")
 
+def clean_vector_redactions(page):
+    """
+    Identifies and returns a list of shapes that are NOT black redaction boxes.
+    This handles vector-based rectangles that get_images() misses.
+    """
+    cleaned_drawings = []
+    
+    # Extract all drawing paths (rectangles, lines, etc.)
+    drawings = page.get_drawings()
+    
+    for path in drawings:
+        is_redaction = False
+        
+        # Check fill color (normalized to 0-1 range in PyMuPDF)
+        fill_color = path.get("fill")
+        stroke_color = path.get("color")
+        
+        # Logic: If it's a filled shape and the color is near black
+        if fill_color:
+            # Check if RGB/CMYK values are all near zero (black)
+            if all(c < 0.05 for c in fill_color):
+                # It's likely a redaction box if it's a closed rectangle
+                # We can also check the area to avoid deleting small icons
+                bbox = path["rect"]
+                if bbox.width > 5 and bbox.height > 5:
+                    is_redaction = True
+        
+        if not is_redaction and stroke_color:
+            if all(c < 0.05 for c in stroke_color) and path.get("width", 0) > 10:
+                is_redaction = True
+
+        if not is_redaction:
+            cleaned_drawings.append(path)
+        else:
+            print(f"  [REMOVED] Vector redaction path at {path['rect']}")
+            
+    return cleaned_drawings
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-i", "--input", type=str, help="Input folder or file")
@@ -128,5 +167,6 @@ if __name__ == "__main__":
 
     in_path = args.input if args.input else input("Input (File or Folder): ").strip().replace('"', '')
     out_dir = args.output if args.output else input("Output Folder: ").strip().replace('"', '')
+
 
     run_operation(in_path, out_dir, args.bbox, args.highlight, args.name)
