@@ -1,0 +1,5 @@
+python "C:\Users\julie\Coding projects\PDF_revealer\unredact.py\src\unredact_v3.py" ^
+ -i "C:\Users\julie\Downloads\EPSTN_download" ^
+ -o "C:\Users\julie\Downloads\EPSTN_output"
+
+
